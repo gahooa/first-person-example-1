@@ -1,144 +1,95 @@
-
+use macroquad::ui::{hash, root_ui, widgets};
 
 use macroquad::prelude::*;
-// use glam::vec3;
 
-const MOVE_SPEED: f32 = 0.1;
-const LOOK_SPEED: f32 = 0.1;
 
-fn conf() -> Conf {
+fn window_conf() -> Conf {
     Conf {
         window_title: String::from("Macroquad"),
         window_width: 1260,
         window_height: 768,
+        high_dpi: true,
         fullscreen: false,
         ..Default::default()
     }
 }
 
-#[macroquad::main(conf)]
+
+#[macroquad::main(window_conf)]
 async fn main() {
-    let rust_logo = load_texture("examples/rust.png").await.unwrap();
-    let ferris = load_texture("examples/ferris.png").await.unwrap();
+    
+    let mut x = String::from("Hello, world!");
 
-    let mut x = 0.0;
-    let mut switch = false;
-    let bounds = 8.0;
-
-    let world_up = vec3(0.0, 1.0, 0.0);
-    let mut yaw: f32 = 1.18;
-    let mut pitch: f32 = 0.0;
-
-    let mut front = vec3(
-        yaw.cos() * pitch.cos(),
-        pitch.sin(),
-        yaw.sin() * pitch.cos(),
-    )
-    .normalize();
-    let mut right = front.cross(world_up).normalize();
-    let mut up;
-
-    let mut position = vec3(0.0, 1.0, 0.0);
-    let mut last_mouse_position: Vec2 = mouse_position().into();
-
-    let mut grabbed = true;
-    set_cursor_grab(grabbed);
-    show_mouse(false);
+    
 
     loop {
-        let delta = get_frame_time();
+        clear_background(WHITE);
 
-        if is_key_pressed(KeyCode::Escape) {
-            break;
-        }
-        if is_key_pressed(KeyCode::Tab) {
-            grabbed = !grabbed;
-            set_cursor_grab(grabbed);
-            show_mouse(!grabbed);
-        }
+        root_ui().window(hash!(), Vec2::new(200., 200.), Vec2::new(450., 200.), |ui| {
+            let (mouse_x, mouse_y) = mouse_position();
+            ui.label(None, &format!("Mouse position: {} {}", mouse_x, mouse_y));
 
-        if is_key_down(KeyCode::W) {
-            position += front * MOVE_SPEED;
-        }
-        if is_key_down(KeyCode::S) {
-            position -= front * MOVE_SPEED;
-        }
-        if is_key_down(KeyCode::A) {
-            position -= right * MOVE_SPEED;
-        }
-        if is_key_down(KeyCode::D) {
-            position += right * MOVE_SPEED;
-        }
+            ui.input_text(hash!(), "give me some data", &mut x);
 
-        let mouse_position: Vec2 = mouse_position().into();
-        let mouse_delta = mouse_position - last_mouse_position;
-        last_mouse_position = mouse_position;
+            if is_key_down(KeyCode::W) {
+                draw_circle(500., 500., 100., BLUE);
+            }
+            if is_key_down(KeyCode::A) {
+                draw_circle(300., 700., 100., RED);
+            }
+            if is_key_down(KeyCode::S) {
+                draw_circle(500., 700., 100., YELLOW);
+            }
+            if is_key_down(KeyCode::D) {
+                draw_circle(700., 700., 100., GREEN);
+            }
 
-        yaw += mouse_delta.x * delta * LOOK_SPEED;
-        pitch += mouse_delta.y * delta * -LOOK_SPEED;
 
-        pitch = if pitch > 1.5 { 1.5 } else { pitch };
-        pitch = if pitch < -1.5 { -1.5 } else { pitch };
+            let (mouse_wheel_x, mouse_wheel_y) = mouse_wheel();
+            ui.label(None, &format!("Mouse wheel x: {}", mouse_wheel_x));
+            ui.label(None, &format!("Mouse wheel y: {}", mouse_wheel_y));
 
-        front = vec3(
-            yaw.cos() * pitch.cos(),
-            pitch.sin(),
-            yaw.sin() * pitch.cos(),
-        )
-        .normalize();
+            widgets::Group::new(hash!(), Vec2::new(200., 90.))
+                .position(Vec2::new(240., 0.))
+                .ui(ui, |ui| {
+                    ui.label(None, "Pressed kbd keys");
 
-        right = front.cross(world_up).normalize();
-        up = right.cross(front).normalize();
+ 
+                });
 
-        x += if switch { 0.04 } else { -0.04 };
-        if x >= bounds || x <= -bounds {
-            switch = !switch;
-        }
+            widgets::Group::new(hash!(), Vec2::new(200., 90.))
+                .position(Vec2::new(240., 92.))
+                .ui(ui, |ui| {
+                    ui.label(None, "Pressed mouse keys");
 
-        clear_background(LIGHTGRAY);
-
-        // Going 3d!
-
-        set_camera(&Camera3D {
-            position: position,
-            up: up,
-            target: position + front,
-            ..Default::default()
+                    if is_mouse_button_down(MouseButton::Left) {
+                        ui.label(None, "Left");
+                    }
+                    if is_mouse_button_down(MouseButton::Right) {
+                        ui.label(None, "Right");
+                    }
+                    if is_mouse_button_down(MouseButton::Middle) {
+                        ui.label(None, "Middle");
+                    }
+                });
         });
 
-        draw_grid(50, 1., BLACK, GRAY);
+        
+        egui_macroquad::ui(|egui_ctx| {
+            egui::Window::new("egui ❤ macroquad")
+                .show(egui_ctx, |ui| {
+                    if ui.button("Test").clicked() {
 
-        draw_line_3d(
-            vec3(x, 0.0, x),
-            vec3(5.0, 5.0, 5.0),
-            Color::new(1.0, 1.0, 0.0, 1.0),
-        );
+                    };
+                });
+        });
 
-        draw_cube_wires(vec3(0., 1., -6.), vec3(2., 2., 2.), GREEN);
-        draw_cube_wires(vec3(0., 1., 6.), vec3(2., 2., 2.), BLUE);
-        draw_cube_wires(vec3(2., 1., 2.), vec3(2., 2., 2.), RED);
-        draw_cube(vec3(2., 1., -2.), vec3(2., 2., 2.), rust_logo, WHITE);
+        // Draw things before egui
 
-        // Back to screen space, render some text
+        egui_macroquad::draw();
+        
 
-        set_default_camera();
-        draw_text("First Person Camera", 10.0, 20.0, 30.0, BLACK);
 
-        draw_text(
-            format!("X: {} Y: {}", mouse_position.x, mouse_position.y).as_str(),
-            10.0,
-            48.0 + 18.0,
-            30.0,
-            BLACK,
-        );
-        draw_text(
-            format!("Press <TAB> to toggle mouse grab: {}", grabbed).as_str(),
-            10.0,
-            48.0 + 42.0,
-            30.0,
-            BLACK,
-        );
-
-        next_frame().await
+        next_frame().await;
     }
 }
