@@ -37,8 +37,8 @@ impl Point{
 fn window_conf() -> Conf {
     Conf {
         window_title: String::from("Triangles"),
-        window_width: 1000,
-        window_height: 700,
+        window_width: 2000,
+        window_height: 1200,
         fullscreen: false,
         ..Default::default()
     }
@@ -56,42 +56,53 @@ async fn main() {
     let mut increment:i64 = 0;
 
     loop {
+        increment += 1;
         if increment % 30 == 0 {
             fps = get_fps();
-
         }
-        increment += 1;
 
-        if points.len() > 0{
-            points.remove(0);
+        let (mouse_x, mouse_y) = mouse_position();
+        
+        let gravity = is_mouse_button_down(MouseButton::Right);
+        let g = vec2(mouse_x, mouse_y);
+        
+        if is_mouse_button_down(MouseButton::Left) {
+            for _ in 0..10 {
+                let vx:f32 = rng.gen_range(-1.0..1.0);
+                let vy:f32 = rng.gen_range(-1.0..1.0);
+                let vr:f32 = rng.gen_range(-1.0..1.0);
+                points.push(Point::new(mouse_x, mouse_y, 0.0, vx, vy, vr, YELLOW ));
+            }
         }
+
+        let sw = screen_width();
+        let sh = screen_height();
+
+        points.retain(|p| p.x > 0.0 && p.x < sw && p.y > 0.0 && p.y < sh);
 
         for point in points.iter_mut(){
+            if gravity {
+                let p = vec2(point.x, point.y);
+                let v = g - p;
+                let q = (1.0 / (p.distance(g).powf(1.5).max(-1.0))) * 10.0;
+
+                point.vx += v.x * q;
+                point.vy += v.y * q;
+            }
+
+            point.vx *= 0.99;
+            point.vy *= 0.99;
             point.update();
         }
         
 
-        let (mouse_x, mouse_y) = mouse_position();
-
-        if is_mouse_button_down(MouseButton::Left) {
-            for _ in 0..100 {
-                let vx:f32 = rng.gen_range(-1.0..1.0);
-                let vy:f32 = rng.gen_range(-1.0..1.0);
-                let vr:f32 = rng.gen_range(-10.0..10.0);
-                points.push(Point::new(mouse_x, mouse_y, 0.0, vx, vy, vr, YELLOW ));
-            }
-        }
-        if is_mouse_button_down(MouseButton::Right) {
-            for _ in 0..100 {
-                let vx:f32 = rng.gen_range(-1.0..1.0);
-                let vy:f32 = rng.gen_range(-1.0..1.0);
-                let vr:f32 = rng.gen_range(-1.0..1.0);
-                points.push(Point::new(mouse_x, mouse_y, 0.0, vx, vy, vr, ORANGE ));
-            }
-        }
 
 
         clear_background(BLACK);
+
+        if gravity {
+            draw_circle(mouse_x, mouse_y, 10.0, BLUE);
+        }
 
         for point in points.iter(){
             draw_poly_lines(point.x, point.y, 3, 7.0, point.r, 1.0, point.color);
@@ -99,6 +110,8 @@ async fn main() {
 
         draw_rectangle(0.0,0.0, screen_width(), 60.0, GRAY);
         draw_text(format!("There are {} objects, running at {} fps", points.len(), fps).as_str(), 20.0, 50.0, 50.0, WHITE);
+
+        
 
         next_frame().await;
     }
